@@ -18,6 +18,9 @@ static auto const REG_BG2HOFS  = (volatile u16_t*)0x04000018;
 static auto const REG_BG2VOFS  = (volatile u16_t*)0x0400001A;
 static auto const REG_BG3HOFS  = (volatile u16_t*)0x0400001C;
 static auto const REG_BG3VOFS  = (volatile u16_t*)0x0400001E;
+static auto const BLDCNT       = (volatile u16_t*)0x04000050;
+static auto const BLDALPHA     = (volatile u16_t*)0x04000052;
+static auto const BLDY         = (volatile u16_t*)0x04000054;
 static auto const SOUND1CNT_L  = (volatile u16_t*)0x04000060;
 static auto const SOUND1CNT_H  = (volatile u16_t*)0x04000062;
 static auto const SOUND1CNT_X  = (volatile u16_t*)0x04000064;
@@ -36,6 +39,7 @@ static auto const WAVE_RAM0_H  = (volatile u16_t*)0x04000092;
 static auto const FIFO_A_L     = (volatile u16_t*)0x040000A0;
 static auto const FIFO_A_H     = (volatile u16_t*)0x040000A2;
 static auto const REG_KEYINPUT = (volatile u16_t*)0x04000130;
+
 static auto const BG_PALETTE   = (volatile u16_t*)0x05000000;
 static auto const OBJ_PALETTE  = (volatile u16_t*)0x05000200;
 static auto const OBJ_PALETTE1 = (volatile u16_t*)0x05000200;
@@ -324,6 +328,61 @@ private:
   u16_t _ch2_volume = 0b1000;
   bool _stop_on_finish = false;
 };
+
+// Effects
+
+class DisplayFadeEffect {
+public:
+  enum class State {
+    Forward = 0,
+    Backward = 1,
+    Middle = 2
+  };
+
+  DisplayFadeEffect() {
+    this->reset();
+  }
+
+  void reset() {
+    *BLDCNT = (
+      0b1 << 0 | // Target BG0
+      0b1 << 1 | // Target BG1
+      0b1 << 2 | // Target BG2
+      0b1 << 3 | // Target BG3
+      0b1 << 4 | // Target OBJ
+      0b1 << 5 | // Target backdrop
+      0b11 << 6  // Effect type = fade-to-black
+    );
+    this->intensity = 0b00000;
+  }
+
+  void update() {
+    if (this->state == State::Forward) {
+      this->intensity++;
+    } else if (this->state == State::Backward) {
+      this->intensity--;
+    }
+
+    *BLDY = (this->intensity & 0b11111);
+
+    if (this->state == State::Forward && this->intensity == 0b10000) {
+      this->state = State::Middle;
+    } else if (this->state == State::Middle) {
+      this->state = State::Backward;
+    } else if (this->state == State::Backward && this->intensity == 0b00000) {
+      this->state = State::Forward;
+    }
+  }
+
+  State get_state() {
+    return this->state;
+  }
+
+private:
+  u16_t intensity = 0b00000;
+  State state = State::Forward;
+};
+
 
 #endif
 
