@@ -336,7 +336,8 @@ public:
   enum class State {
     Forward = 0,
     Backward = 1,
-    Middle = 2
+    Middle = 2,
+    Finished = 3
   };
 
   DisplayFadeEffect() {
@@ -354,6 +355,7 @@ public:
       0b11 << 6  // Effect type = fade-to-black
     );
     this->intensity = 0b00000;
+    this->state = State::Forward;
   }
 
   void update() {
@@ -370,7 +372,7 @@ public:
     } else if (this->state == State::Middle) {
       this->state = State::Backward;
     } else if (this->state == State::Backward && this->intensity == 0b00000) {
-      this->state = State::Forward;
+      this->state = State::Finished;
     }
   }
 
