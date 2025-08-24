@@ -137,11 +137,11 @@ struct Controller {
   static inline bool is_released(u16_t btn) { return !Controller::is_pressed(btn); }
 
   inline bool is_just_pressed(u16_t btn) {
-    return this->_is_just_pressed;
+    return this->_is_just_pressed & btn;
   }
 
   inline bool is_just_released(u16_t btn) {
-    return this->_is_just_released;
+    return this->_is_just_released & btn;
   }
 
   void update() {
