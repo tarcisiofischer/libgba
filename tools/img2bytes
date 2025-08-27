@@ -1,0 +1,134 @@
+#!/bin/python3
+
+import PIL.Image
+from PIL import Image, ExifTags
+import argparse
+import json
+import sys
+
+
+def color24to15(c: int):
+    '''
+    Transform a 24bit (RGB) color into a GBA 15bit color.
+    '''
+    return (
+      ( ((c >> (0  + 3)) & 0x1f) << 10 ) |
+      ( ((c >> (8  + 3)) & 0x1f) <<  5 ) |
+      ( ((c >> (16 + 3)) & 0x1f) <<  0 )
+    )
+
+class Tileset:
+    '''
+    Utility class to load an image file as a gba tileset.
+    '''
+    def __init__(self, img_path: str):
+        self.img = PIL.Image.open(args.input)
+
+        exif_info = self.img.getexif()
+        exif_info = ({ExifTags.TAGS[tag]: value for tag, value in exif_info.items()})
+        metadata = json.loads(exif_info.get("ImageDescription", '{}'))
+        if "ImageDescription" not in exif_info:
+            print(f"WARNING: {img_path} doesn't have any image metadata. Will proceed with defaults.")
+        x_tile_size = int(metadata.get("x_tile_size", 8))
+        y_tile_size = int(metadata.get("y_tile_size", 8))
+
+        assert (
+            self.img.width % x_tile_size == 0 and
+            self.img.height % y_tile_size == 0
+        ), f"Invalid file dimension.\n"\
+           f"Expected tile size = ({x_tile_size}x{y_tile_size})\n" \
+           f"Image size = ({self.img.width}x{self.img.height})."
+        self.x_tile_size = x_tile_size
+        self.y_tile_size = y_tile_size
+        self._compute_palette()
+        self._compute_tiles()
+
+    def _compute_palette(self):
+        self.palette = []
+        for rgb in self.img.getdata():
+            c24 = (rgb[0] << 16) | (rgb[1] << 8) | (rgb[2] << 0)
+            c15 = color24to15(c24)
+            if c15 in self.palette:
+                continue
+            self.palette.append(c15)
+        assert len(self.palette) < 16, \
+            f"Max n.colors is 16, but this image has {len(self.palette)}"
+        self.palette.append(0x003c)
+
+    def _compute_tiles(self):
+        self.tiles = []
+        get_pixel = lambda x, y: self.img.getdata()[y * self.img.width + x]
+        tiles_per_line = self.img.width // self.x_tile_size
+        n_lines = self.img.height // self.y_tile_size
+        for tile_id in range(tiles_per_line * n_lines):
+            get_pixel_view = lambda x, y: get_pixel(
+                self.x_tile_size * (tile_id % tiles_per_line) + x,
+                self.y_tile_size * (tile_id // tiles_per_line) + y
+            )
+            tile = []
+            for y in range(self.y_tile_size):
+                for x in range(self.x_tile_size):
+                    rgb = get_pixel_view(x, y)
+                    c24 = (rgb[2] << 0) | (rgb[1] << 8) | (rgb[0] << 16)
+                    color_id = self.palette.index(color24to15(c24))
+                    tile.append(color_id)
+            self.tiles.append(tile)
+
+
+def tile_as_hex(tile: [int], x_tile_size: int, y_tile_size: int):
+    '''
+    Takes a single tile and creates a GBA hex representation of it.
+    Assumes 4bit (16) colors.
+    '''
+    # Transforms the tile color ids into hexadecimal color ids
+    # Note: Each color is encoded in 4bits for 16color mode.
+    # Note: GBA expects the lower 4 bits to be the left pixel, and the upper
+    # 4 bits to be the right pixel, thus needing to reverse order of each
+    # chunk of colors.
+    hex_image = []
+    for  i in range(0, len(tile), 4):
+        chunk = tile[i:i+4]
+        hex_image.append(f"0x{chunk[-1]:x}{chunk[-2]:x}{chunk[-3]:x}{chunk[-4]:x}")
+
+    # Rearrange data to fit into GBA's 1d mapping.
+    result = []
+    if x_tile_size == 8 and y_tile_size == 8:
+        result = hex_image
+    elif x_tile_size == 16 and y_tile_size == 16:
+        for k in [0, 2, 32, 34]:
+            for i in range(8):
+                result += [hex_image[4*i  + k], hex_image[4*i + 1 + k]]
+    else:
+        assert False, f"Not implemented for tile size of ({x_tile_size}, {y_tile_size})"
+    return result
+
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("input")
+    parser.add_argument("output")
+    args = parser.parse_args()
+    tileset = Tileset(args.input)
+
+    ret = []
+    ret.append("static u16_t const PALETTE[] = {")
+    for c15 in tileset.palette:
+        ret.append(f"  {c15:#0{6}x}, ")
+    ret.append("};");
+    ret.append(f"static u16_t const PALETTE_SIZE = {len(tileset.palette)};")
+
+    ret.append("static u16_t const TILESET[] = {")
+    size = 0
+    for tile in tileset.tiles:
+        as_hex = tile_as_hex(tile, tileset.x_tile_size, tileset.y_tile_size)
+        ret.append(', '.join(as_hex) + ',' if as_hex else '')
+        size += len(as_hex)
+    ret.append("};")
+    ret.append(f"static u16_t const TILESET_SIZE = {size};")
+
+    with open(args.output, "w") as f:
+        f.write('\n'.join(ret))
+
+    sys.exit(0)
+

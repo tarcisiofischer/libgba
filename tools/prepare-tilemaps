@@ -1,0 +1,37 @@
+#!/bin/python3
+
+import argparse
+import json
+import os
+import sys
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('input')
+    parser.add_argument('output')
+    args = parser.parse_args()
+
+    if not os.path.isfile(args.input):
+        print(f'Error: Couldn\'t find file {args.input}')
+        sys.exit(-1)
+    with open(args.input, 'r') as f:
+        raw_contents = json.load(f)
+    assert 'layers' in raw_contents.keys()
+    contents = []
+    for layer in raw_contents['layers']:
+        contents.append(f'static u16_t const TILEMAP_{layer['name']}[] = {{')
+        size = 0
+        if 'data' in layer:
+            # Note: I've hardcoded '1' here, but this should be
+            # tilesets[i].firstgid (in the json file) - I'm assuming there will
+            # be only one tileset, but that might change in the future.
+            contents.append(', '.join((str(d - 1) if d > 0 else '0' for d in layer['data'])))
+            size = len(layer['data'])
+        contents.append('};')
+        contents.append(f'static u16_t const TILEMAP_{layer['name']}_SIZE = {size};');
+
+    with open(args.output, "w") as f:
+        f.write('\n'.join(contents))
+
+    sys.exit(0)
+
