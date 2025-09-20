@@ -4,6 +4,7 @@ import PIL.Image
 from PIL import Image, ExifTags
 import argparse
 import json
+import os
 import sys
 
 
@@ -22,13 +23,17 @@ class Tileset:
     Utility class to load an image file as a gba tileset.
     '''
     def __init__(self, img_path: str):
-        self.img = PIL.Image.open(args.input)
+        self.img = PIL.Image.open(img_path)
 
-        exif_info = self.img.getexif()
-        exif_info = ({ExifTags.TAGS[tag]: value for tag, value in exif_info.items()})
-        metadata = json.loads(exif_info.get("ImageDescription", '{}'))
-        if "ImageDescription" not in exif_info:
-            print(f"WARNING: {img_path} doesn't have any image metadata. Will proceed with defaults.")
+        if os.path.isfile(img_path + ".metadata"):
+            with open(img_path + ".metadata", 'r') as f:
+                metadata = json.load(f)
+        else:
+            exif_info = self.img.getexif()
+            exif_info = ({ExifTags.TAGS[tag]: value for tag, value in exif_info.items()})
+            metadata = json.loads(exif_info.get("ImageDescription", '{}'))
+            if "ImageDescription" not in exif_info:
+                print(f"WARNING: {img_path} doesn't have any image metadata. Will proceed with defaults.")
         x_tile_size = int(metadata.get("x_tile_size", 8))
         y_tile_size = int(metadata.get("y_tile_size", 8))
 
