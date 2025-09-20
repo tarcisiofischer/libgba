@@ -1,3 +1,5 @@
+void __cxa_pure_virtual() { while(1); }
+
 void __libc_init_array() {
   // Intentionally left blank.
 }
