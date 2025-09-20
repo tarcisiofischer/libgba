@@ -90,30 +90,60 @@ struct OAM_attr {
     _64x64 = 3
   };
 
+  static u16_t next_available_id() {
+    for (u16_t i = 0; i < 128; ++i) {
+      if (OAM_attr::get_obj(i)->get_sprite_id() == 0) {
+        return i;
+      }
+    }
+    return 128;
+  }
+
   static volatile OAM_attr* get_obj(u16_t obj_id) {
     return reinterpret_cast<volatile OAM_attr*>(OAM + obj_id * sizeof(OAM_attr));
   }
+
+  inline u16_t get_x() volatile {
+    return attr1 & 0x1ff;
+  }
+
+  inline u8_t get_y() volatile {
+    return attr0 & 0xff;
+  }
+
   inline void set_x(u16_t v) volatile {
     attr1 &= ~0x1ff;
     attr1 |= v & 0x1ff;
   }
+
   inline void set_y(u8_t v) volatile {
     attr0 &= ~0xff;
     attr0 |= v & 0xff;
   }
+
   inline void set_size(ObjectSize size) volatile {
     attr1 &= ~(0b11 << 14);
     attr1 |= (static_cast<u16_t>(size) << 14);
   }
-  static constexpr u16_t step16x16(u16_t sprite_id) { return 4 * sprite_id; }
+
+  static constexpr u16_t step16x16(u16_t sprite_id) {
+    return 4 * sprite_id;
+  }
+
   inline void set_sprite(u16_t sprite_id) volatile {
     attr2 &= ~0x1ff;
     attr2 |= (sprite_id & 0x1ff);
   }
+
+  inline u16_t get_sprite_id() volatile {
+    return attr2 & 0x1ff;
+  }
+
   inline void set_hflip(bool v) volatile {
     attr1 &= ~(1 << 12);
     attr1 |= (v << 12);
   }
+
   inline void set_palette(u16_t p) volatile {
     attr2 &= ~(0b1111 << 12);
     attr2 |= (p & 0b1111) << 12;
