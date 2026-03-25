@@ -18,12 +18,13 @@ function(gba_exec)
   )
   target_link_options(
     ${arg_NAME} PRIVATE
+    -fuse-ld=lld
     -nostdlib
     -L${CMAKE_BINARY_DIR}/libgba
     -llibgba-rt
     -llibgba-libc
     -Wl,-T,${CMAKE_SOURCE_DIR}/libgba/rt/gba_cart.ld
-    -L$ENV{GBA_LLVM}/lib/clang/21/lib/armv4t-none-unknown-eabi/
+    -L$ENV{GBA_LLVM}/lib/clang/22/lib/armv4t-none-unknown-eabi/
     -lclang_rt.builtins
   )
 
