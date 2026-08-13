@@ -314,11 +314,11 @@ struct Sound {
 
     if (this->_song_ch1[this->_song_pos] != _) {
       *SOUND1CNT_H = this->_ch1_type | (this->_ch1_volume << 12);
-      *SOUND1CNT_X = 0b1100'0000'0000'0000 | this->_song_ch1[this->_song_pos];
+      *SOUND1CNT_X = 0b1000'0000'0000'0000 | this->_song_ch1[this->_song_pos];
     }
     if (this->_song_ch2 && this->_song_ch2[this->_song_pos] != _) {
       *SOUND2CNT_H = this->_ch2_type | (this->_ch2_volume << 12);
-      *SOUND2CNT_L = 0b1100'0000'0000'0000 | this->_song_ch2[this->_song_pos];
+      *SOUND2CNT_L = 0b1000'0000'0000'0000 | this->_song_ch2[this->_song_pos];
     }
     this->_song_pos++;
     if (this->_song_pos > this->_song_size) {
