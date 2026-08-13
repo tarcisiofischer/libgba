@@ -1,0 +1,159 @@
+#!/bin/python3
+
+import argparse
+import zipfile
+import xml.etree.ElementTree as ET
+
+
+def _d(n):
+    from pprint import pprint
+    info = {
+        "tag": n.tag,
+        "atrib": n.attrib,
+        "text": n.text.strip() if n.text and n.text.strip() else None,
+        "children": [
+            {
+                "tag": c.tag,
+                "atrib": c.attrib,
+                "text": c.text.strip() if c.text and c.text.strip() else None
+            } for c in n
+        ]
+    }
+    pprint(info, sort_dicts=False)
+
+
+def find_score(e):
+    s = next((c for c in e if c.tag == 'Score'), None)
+    assert s is not None, "Could not find Score element on file"
+    return s
+
+
+def pitch_to_note(pitch):
+    NOTES = ["C", "Cs", "D", "Ds", "E", "F", "Fs", "G", "Gs", "A", "As", "B"]
+    octave = (pitch // 12) - 2
+    note = NOTES[pitch % 12]
+    return f"{note}{octave}"
+
+
+def extract_pitch(note_node):
+    n = note_node
+    pitch = next((c for c in n if c.tag == 'pitch'), None)
+    assert pitch is not None, "Could not extract pitch from note"
+
+    # Ties will affect how the notes are played
+    tie = next((c for c in n if c.tag == 'Tie'), None)
+    if tie is not None:
+        # Code left for reference, no actions required.
+        # This is the "start" note for a matching 'endSpanned' mark.
+        pass
+    end_spanner = next((c for c in n if c.tag == 'endSpanner'), None)
+    if end_spanner is not None:
+        # End of a Tie, we should not play the note again (it is a "long hold")
+        return None
+
+    return int(pitch.text)
+
+
+def extract_duration(duration_node):
+    n = duration_node
+    if n.text == 'whole':
+        return 16
+    elif n.text == 'half':
+        return 8
+    elif n.text == 'quarter':
+        return 4
+    elif n.text == 'eighth':
+        return 2
+    elif n.text == '16th':
+        return 1
+    elif n.text == '32nd':
+        # TODO: Better timing handling and fix this. It should be faster
+        return 1
+    elif n.text == 'measure':
+        # This seems to mean a full silence, I'm not sure the best way of handling it
+        return 1
+    else:
+        assert False, f'Unsuported duration {n.text}'
+
+
+def extract_measure(voice_node):
+    measure = []
+    for e in voice_node:
+        if e.tag == 'Chord':
+            # A Chord may have multiple pitches
+            pitch_list = []
+            for c in e:
+                if c.tag == 'durationType':
+                    dur = extract_duration(c)
+                elif c.tag == 'Note':
+                    p = extract_pitch(c)
+                    if p is not None:
+                        pitch_list.append(p)
+
+            # Dots will affect notes duration
+            dot = next((c for c in e if c.tag == 'dots'), None)
+            if dot is not None:
+                # TODO: the int conversion shoudln't exist, but we don't have a better
+                #       timing system in libgba.
+                dur = int(dur * 1.5)
+
+            # TODO: libgba doesn't support multiple notes, so get the highest pitch from the chord
+            pitch = max(pitch_list)
+            note = pitch_to_note(pitch)
+
+            measure.append((note, dur))
+        elif e.tag == "Rest":
+            c = next((c for c in e if c.tag == 'durationType'), None)
+            assert c is not None, "Failed to extract duration from Rest node"
+            dur = extract_duration(c)
+            measure.append(('_', dur))
+    return measure
+
+
+def process_mscx(f):
+    with zipfile.ZipFile(f, 'r') as archive:
+        mscx_filename = [f for f in archive.namelist() if f.endswith('.mscx')][0]
+
+        with archive.open(mscx_filename) as xml_file:
+            tree = ET.parse(xml_file)
+            root = tree.getroot()
+    version = root.get('version')
+
+    score = find_score(root)
+    music = []
+    for e in score:
+        if e.tag == 'Division':
+            # TODO: Properly handle time
+            time = e.text
+        elif e.tag == 'Part':
+            # TODO: Check if we need this
+            continue
+        elif e.tag == 'Staff':
+            for c in e:
+                if c.tag == 'Measure':
+                    if version == '2.06':
+                        # Apparently the voice was optional in 2.06
+                        vn = c
+                    else:
+                        vn = next((cc for cc in c if cc.tag == 'voice'))
+                    music.extend(extract_measure(vn))
+
+            # Ignore other Staffs
+            break
+        else:
+            continue
+    print("u16_t song[] = {")
+    for note, dur in music:
+        print(f'{note},', end='')
+        print('_,' * (dur - 1), end='')
+    print("};")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("input")
+    parser.add_argument("output")
+    args = parser.parse_args()
+
+    process_mscx(args.input)
+
