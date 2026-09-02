@@ -100,7 +100,7 @@ struct OAM_attr {
   }
 
   static volatile OAM_attr* get_obj(u16_t obj_id) {
-    return reinterpret_cast<volatile OAM_attr*>(OAM + obj_id * sizeof(OAM_attr));
+    return reinterpret_cast<volatile OAM_attr*>(OAM) + obj_id;
   }
 
   inline u16_t get_x() volatile {
@@ -317,11 +317,11 @@ struct Sound {
       *SOUND1CNT_X = 0b1000'0000'0000'0000 | this->_song_ch1[this->_song_pos];
     }
     if (this->_song_ch2 && this->_song_ch2[this->_song_pos] != _) {
-      *SOUND2CNT_H = this->_ch2_type | (this->_ch2_volume << 12);
-      *SOUND2CNT_L = 0b1000'0000'0000'0000 | this->_song_ch2[this->_song_pos];
+      *SOUND2CNT_L = this->_ch2_type | (this->_ch2_volume << 12);
+      *SOUND2CNT_H = 0b1000'0000'0000'0000 | this->_song_ch2[this->_song_pos];
     }
     this->_song_pos++;
-    if (this->_song_pos > this->_song_size) {
+    if (this->_song_pos >= this->_song_size) {
       this->_song_pos = 0;
       if (this->_stop_on_finish) {
         this->stop();
