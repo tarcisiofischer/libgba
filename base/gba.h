@@ -1,7 +1,7 @@
 #ifndef _GBA_H
 #define _GBA_H
 
-#include <types.h>
+#include <libgba/types.h>
 
 // Memory data pointers
 static auto const REG_DISPCNT  = (volatile u16_t*)0x04000000;

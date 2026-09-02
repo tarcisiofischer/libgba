@@ -1,6 +1,8 @@
 #ifndef __LIBGBA_RANDOM
 #define __LIBGBA_RANDOM
 
+#include <libgba/types.h>
+
 u16_t rand(u16_t seed)
 {
   seed = 0xa9f*seed + 0x1edd;

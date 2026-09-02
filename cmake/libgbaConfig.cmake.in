@@ -1,0 +1,12 @@
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/libgbaTargets.cmake")
+
+# Expose paths consumers need for GBAExecutable.cmake
+set(LIBGBA_INCLUDE_DIR "${PACKAGE_PREFIX_DIR}/include")
+set(LIBGBA_LINKER_SCRIPT "${PACKAGE_PREFIX_DIR}/lib/libgba/rt/gba_cart.ld")
+set(LIBGBA_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+
+include("${CMAKE_CURRENT_LIST_DIR}/GBAExecutable.cmake")
+
+check_required_components(libgba)

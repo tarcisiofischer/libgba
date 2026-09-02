@@ -13,19 +13,20 @@ function(gba_exec)
     -mfpu=none
     -fno-rtti
     -nostdlib
-    -I${CMAKE_SOURCE_DIR}/libgba/rt/
-    -I${CMAKE_SOURCE_DIR}/libgba/base/
+    -I${LIBGBA_INCLUDE_DIR}
   )
   target_link_options(
     ${arg_NAME} PRIVATE
     -fuse-ld=lld
     -nostdlib
-    -L${CMAKE_BINARY_DIR}/libgba
-    -llibgba-rt
-    -llibgba-libc
-    -Wl,-T,${CMAKE_SOURCE_DIR}/libgba/rt/gba_cart.ld
+    -Wl,-T,${LIBGBA_LINKER_SCRIPT}
     -L$ENV{GBA_LLVM}/lib/clang/22/lib/armv4t-none-unknown-eabi/
     -lclang_rt.builtins
+  )
+  target_link_libraries(
+    ${arg_NAME} PRIVATE
+    libgba::libgba-rt
+    libgba::libgba-libc
   )
 
   set(RESOLVED_TARGET_FILE $<TARGET_FILE:${arg_NAME}>)
