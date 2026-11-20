@@ -1,7 +1,8 @@
 function(gba_exec)
+  set(options ENABLE_TXT)
   set(oneValueArgs NAME TILEMAP)
   set(multiValueArgs SOURCES SPRITESHEETS)
-  cmake_parse_arguments(arg "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+  cmake_parse_arguments(arg "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
   add_executable(
     ${arg_NAME}
@@ -28,6 +29,13 @@ function(gba_exec)
     libgba::libgba-rt
     libgba::libgba-libc
   )
+
+  if (arg_ENABLE_TXT)
+    target_link_libraries(
+      ${arg_NAME} PRIVATE
+      libgba::libgba-txt
+    )
+  endif()
 
   set(RESOLVED_TARGET_FILE $<TARGET_FILE:${arg_NAME}>)
   set(ASSETS_OUTPUT_DIR "${CMAKE_BINARY_DIR}/${arg_NAME}_assets/")
