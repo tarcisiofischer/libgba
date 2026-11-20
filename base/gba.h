@@ -155,7 +155,7 @@ struct _VRAM_t {
 };
 static _VRAM_t VRAM;
 
-void vid_vsync()
+inline void vid_vsync()
 {
   while(*REG_VCOUNT >= 160);
   while(*REG_VCOUNT < 160);
